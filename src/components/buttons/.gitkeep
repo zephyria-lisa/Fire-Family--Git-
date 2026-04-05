@@ -1,0 +1,9 @@
+// Placeholder — add button interaction handlers here.
+// Example file structure:
+//
+// module.exports = {
+//     data: { customId: 'my_button' },
+//     async execute(interaction, client) {
+//         await interaction.reply({ content: 'Button clicked!', ephemeral: true });
+//     },
+// };

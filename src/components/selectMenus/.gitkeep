@@ -1,0 +1,10 @@
+// Placeholder — add select menu handlers here.
+// Example file structure:
+//
+// module.exports = {
+//     data: { customId: 'my_select' },
+//     async execute(interaction, client) {
+//         const selected = interaction.values[0];
+//         await interaction.reply({ content: `You selected: ${selected}`, ephemeral: true });
+//     },
+// };

@@ -1,0 +1,10 @@
+// Placeholder — add modal submit handlers here.
+// Example file structure:
+//
+// module.exports = {
+//     data: { customId: 'my_modal' },
+//     async execute(interaction, client) {
+//         const value = interaction.fields.getTextInputValue('input_field');
+//         await interaction.reply({ content: `You submitted: ${value}`, ephemeral: true });
+//     },
+// };

@@ -1,0 +1,62 @@
+{
+    "channels": {
+        "security_logs": "1489713101505822831",
+        "role_protection_logs": "1489638887478395092",
+        "action_logs": "1489725715636162651"
+    },
+    "roles": {
+        "protected_role": "1489638061611679834",
+        "down_moderator_role": "1490050634223718570",
+        "middle_moderator_role": "1490050660002173099",
+        "high_moderator_role": "1490050687827050657"
+    },
+    "limits": {
+        "down_moderator_limit": 5,
+        "middle_moderator_limit": 3,
+        "high_moderator_limit": 1
+    },
+    "role_cooldowns": {
+        "1489708703752917143": {
+            "ban": 3,
+            "kick": 3
+        }
+    },
+    "role_perm_cooldowns": {
+        "1489708703752917143": {
+            "grant": 10,
+            "remove": 10
+        },
+        "1489708682349510879": {
+            "grant": 5,
+            "remove": 5
+        },
+        "1489708648069464114": {
+            "grant": 2,
+            "remove": 2
+        }
+    },
+    "bot_general_log": "1488591995063504986",
+    "emojis": {
+        "lock": "<:87233lockids:1489725208603394098>",
+        "info": "<:info:1489727814725931141>",
+        "warning": "<:HighWarning:1489728719181447238>",
+        "gg": "<:Tifa_GG:1489730182460997703>",
+        "notification": "<:13163notificationids:1489725038709182595>",
+        "feet_kick": "<a:feet_kicking:1489730067578753064>",
+        "green_dot": "<:GreenDot:1489956478759731280>",
+        "yellow_dot": "<:YellowDot:1489956522262794402>",
+        "gray_dot": "<:GrayDot:1490068426440310836>",
+        "red_dot": "<:RedDot:1489956568459116554>",
+        "down_moderator": "<:alt_moderator:1490054797582405642>",
+        "middle_moderator": "<:orta_moderator:1490054774635102259>",
+        "high_moderator": "<:ust_moderator:1490054814531326003>",
+        "member": "<:member:1490056262707183767>",
+        "ping": "<:Stats:1490056605641867285>",
+        "uptime": "<:Discord:1490056503984652298>",
+        "message": "<:TextMessage:1490062950948536543>",
+        "online": "<a:matamison:1490064174640795861>",
+        "member_join": "<:MemberJoined:1490066864930426890>",
+        "voice": "<:voice_stage:1490067279591768094>",
+        "timer": "<:Timer:1490068067055567029>"
+    }
+}
