@@ -1,4 +1,4 @@
-const { ContextMenuCommandBuilder, ApplicationCommandType } = require('discord.js');
+const { ContextMenuCommandBuilder, ApplicationCommandType, MessageFlags } = require('discord.js');
 const { infoEmbed } = require('../../utils/embeds');
 
 module.exports = {
@@ -7,6 +7,7 @@ module.exports = {
         .setType(ApplicationCommandType.User),
 
     async execute(interaction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         const target = interaction.targetUser;
         const member = interaction.targetMember;
 
@@ -26,6 +27,6 @@ module.exports = {
             );
         }
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.editReply({ embeds: [embed] });
     },
 };

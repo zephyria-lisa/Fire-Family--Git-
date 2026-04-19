@@ -1,18 +1,28 @@
 {
     "channels": {
-        "security_logs": "1489713101505822831",
-        "role_protection_logs": "1489638887478395092",
-        "action_logs": "1489725715636162651"
+        "security_logs": "1493312702272245881",
+        "role_protection_logs": "1493313264590000280",
+        "action_logs": "1493313309506666567"
     },
     "roles": {
-        "protected_role": "1489638061611679834",
-        "down_moderator_role": "1490050634223718570",
-        "middle_moderator_role": "1490050660002173099",
-        "high_moderator_role": "1490050687827050657"
+        "protected_role": "1412715188104462366",
+        "down_moderator_role": "1404507718084989000",
+        "middle_moderator_role": "1482779203471675504",
+        "high_moderator_role": "1462708277837041836",
+        "jail_role": "1461371300629971076",
+        "booster_role": "1377689850849005629"
     },
+    "userids": {
+        "ates": "684370554215858304",
+        "melisa": "735807653594398742"
+    },
+	"muter_ids": [
+        "684370554215858304",
+        "735807653594398742"
+    ],
     "limits": {
-        "down_moderator_limit": 5,
-        "middle_moderator_limit": 3,
+        "down_moderator_limit": 7,
+        "middle_moderator_limit": 1,
         "high_moderator_limit": 1
     },
     "role_cooldowns": {
@@ -21,19 +31,51 @@
             "kick": 3
         }
     },
+	"jail_role_protection_exceptions": [
+        "1468422190876856511"
+    ],
+	"jail_role_exceptions": [
+        "1404507718084989000",
+        "1446973459988091053",
+        "1463292877953040620",
+        "1482779203471675504"
+    ],
     "role_perm_cooldowns": {
-        "1489708703752917143": {
-            "grant": 10,
-            "remove": 10
+        "1462708277837041836": {
+            "grant": 99999,
+            "remove": 99999
         },
-        "1489708682349510879": {
+		"1446973459988091053": {
+			"jail": 1,
+			"unjail": 1,
+			"grant": 4,
+            "remove": 4
+		},
+        "1482779203471675504": {
             "grant": 5,
             "remove": 5
         },
-        "1489708648069464114": {
-            "grant": 2,
+        "1404507718084989000": {
+            "grant": 8,
+            "remove": 8,
+			"jail": 2,
+			"unjail": 2
+        },
+		"1482779203471675504": {
+			"grant": 2,
             "remove": 2
-        }
+		},
+		"1489627228445610155": {
+			"grant": 2,
+            "remove": 2
+		},
+		"1463292877953040620": {
+			"grant": 15,
+			"remove": 15
+		}
+    },
+	"private_rooms": {
+        "category_id": "1437912462115733598"
     },
     "bot_general_log": "1488591995063504986",
     "emojis": {
@@ -57,6 +99,7 @@
         "online": "<a:matamison:1490064174640795861>",
         "member_join": "<:MemberJoined:1490066864930426890>",
         "voice": "<:voice_stage:1490067279591768094>",
-        "timer": "<:Timer:1490068067055567029>"
+        "timer": "<:Timer:1490068067055567029>",
+        "crown": "<:Holographic_owner_crown:1492226384972480532>"
     }
 }

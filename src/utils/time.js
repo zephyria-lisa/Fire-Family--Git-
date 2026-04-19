@@ -67,4 +67,17 @@ function getMidnightRemainingTime() {
     return msToTime(remaining);
 }
 
-module.exports = { isNightTime, getTodayDate, msToTime, getTodayStartTimestamp, getMidnightRemainingTime };
+function getYesterdayDate() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const formatter = new Intl.DateTimeFormat('tr-TR', {
+        timeZone: 'Europe/Istanbul',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+
+    return formatter.format(yesterday); // "03.03.2026"
+}
+
+module.exports = { isNightTime, getTodayDate, getYesterdayDate, msToTime, getTodayStartTimestamp, getMidnightRemainingTime };

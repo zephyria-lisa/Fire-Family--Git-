@@ -100,6 +100,22 @@ function generateSecurityEmbed(logEntry) {
         );
     }
 
+    if (eventType === 'mute_lock_violation') {
+        fields.push(
+            { name: 'Hedef', value: `<@${details.target}>`, inline: true },
+            { name: 'Sebep', value: `Sağ tık kilitli susturmayı açma teşebbüsü`, inline: true },
+            { name: 'Moderatör', value: `<@${details.moderator}>`, inline: true },
+        );
+    }
+
+    if (eventType === 'deafen_lock_violation') {
+        fields.push(
+            { name: 'Hedef', value: `<@${details.target}>`, inline: true },
+            { name: 'Sebep', value: `Sağ tık kilitli sağırlaştırmayı açma teşebbüsü`, inline: true },
+            { name: 'Moderatör', value: `<@${details.moderator}>`, inline: true },
+        );
+    }
+
     return baseEmbed()
         .setTitle(`${eventType.toUpperCase()} - Güvenlik Kaydı`)
         .setDescription(`<t:${Math.floor(new Date(timestamp).getTime() / 1000)}:R> tarihinde ${id} ID'li ${eventType} işlemi gerçekleşti.`)

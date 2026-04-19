@@ -1,4 +1,6 @@
+const { MessageFlags } = require('discord.js');
 const { successEmbed, infoEmbed, errorEmbed } = require('../../utils/embeds');
+
 const jsonConfig = require('../../utils/config.json');
 const Logger = require('../../utils/logger');
 
@@ -45,14 +47,14 @@ module.exports = {
 
             await interaction.reply({
                 embeds: [successEmbed('Rapor İletildi', 'Şikayetiniz başarıyla moderatörlere iletildi. Teşekkür ederiz.')],
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
 
         } catch (error) {
             Logger.error(`Error processing report modal:`, error);
             await interaction.reply({
                 embeds: [errorEmbed('Hata', 'Şikayet iletilirken bir sorun oluştu.')],
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
     },

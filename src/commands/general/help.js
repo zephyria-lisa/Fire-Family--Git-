@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, MessageFlags } = require('discord.js');
 const { infoEmbed } = require('../../utils/embeds');
 
 module.exports = {
@@ -7,6 +7,8 @@ module.exports = {
         .setDescription('Tüm komutların interaktif yardım menüsünü görüntüler'),
 
     async execute(interaction, client) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
         const embed = infoEmbed(
             '🤖 Fire Family Botu Yardım Menüsü',
             'Aşağıdaki açılır menüden bir komut kategorisi seçerek size sunulan belirli komutları görebilirsiniz.\n\n' +
@@ -39,6 +41,6 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+        await interaction.editReply({ embeds: [embed], components: [row] });
     },
 };

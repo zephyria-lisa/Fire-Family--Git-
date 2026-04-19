@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 const { infoEmbed, errorEmbed } = require('../../utils/embeds');
 const Logger = require('../../utils/logger');
 const { logSecurityEvent } = require('../../utils/security-logs');
@@ -68,7 +68,7 @@ module.exports = {
 
             const embed = infoEmbed('Başarılı', 'Üyenin susturulması kaldırıldı.')
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
 
             await logSecurityEvent(client, interaction.guild.id, 'unmute', {
                 target: member.id,
@@ -80,7 +80,7 @@ module.exports = {
             Logger.error(`Error in view_member button:`, error);
             await interaction.reply({
                 embeds: [errorEmbed('Error', 'Failed to fetch member details. They may have left the server.')],
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
     },

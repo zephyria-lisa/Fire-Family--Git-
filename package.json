@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy": "node src/utils/deploy-commands.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+	"test-lb": "node src/utils/test-leaderboard.js"
   },
   "keywords": [
     "discord",

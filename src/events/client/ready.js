@@ -4,10 +4,10 @@ const config = require('../../config');
 const db = require('../../database/db');
 const { checkMember } = require('../../utils/memberChecker');
 const { baseEmbed } = require('../../utils/embeds');
-const { initJailCheck } = require('../../utils/jailUtils');
-const { syncGuild } = require('../../utils/roleProtection');
+const { initJailCheck, syncJails } = require('../../utils/jailUtils');
+const { syncGuild, syncChannelPermissions } = require('../../utils/roleProtection');
 const { emojis, limits } = require('../../utils/config.json');
-const { msToTime, getTodayDate, getTodayStartTimestamp, isNightTime } = require('../../utils/time');
+const { msToTime, getTodayDate, getYesterdayDate, getTodayStartTimestamp, isNightTime } = require('../../utils/time');
 const { getModeratorRoleOwnerAmounts } = require('../../utils/roleUtils');
 
 async function updateStatsMessage(client) {
@@ -83,6 +83,137 @@ async function updateStatsMessage(client) {
     }
 }
 
+async function updateLeaderboardMessage(client) {
+    try {
+        // ─── Cleanup Yesterday's Data & DM Top Users ──────────
+        const yesterday = getYesterdayDate();
+        const yesterdayStats = await db.get(`daily_message_stats.${yesterday}`);
+
+        if (yesterdayStats && Object.keys(yesterdayStats).length > 0) {
+            const sortedYesterday = Object.entries(yesterdayStats)
+                .sort(([, a], [, b]) => b - a);
+
+            // Capture top 1 of yesterday before deletion
+            const topUserEntry = sortedYesterday[0];
+            if (topUserEntry) {
+                await db.set('last_day_winner', {
+                    userId: topUserEntry[0],
+                    count: topUserEntry[1],
+                    date: yesterday
+                });
+            }
+
+            for (let i = 0; i < 3; i++) {
+                const entry = sortedYesterday[i];
+                if (!entry) break;
+
+                const [userId, count] = entry;
+                const rank = i + 1;
+                const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
+
+                if (user) {
+                    const congratulateEmbed = baseEmbed()
+                        .setTitle(`${emojis.crown} | Günlük Sıralama Tebriği!`)
+                        .setDescription(`Tebrikler ${user}! **${yesterday}** tarihindeki günlük mesaj sıralamasında **${rank}.** oldun!`)
+                        .setColor("#a142f5")
+                        .addFields(
+                            { name: `${emojis.message} | Mesaj Sayın`, value: `• \`${count}\``, inline: true },
+                            { name: `${emojis.info} | Sıralaman`, value: `• \`${rank}. \``, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await user.send({ embeds: [congratulateEmbed] }).catch(err => {
+                        Logger.warn(`UserId: ${userId} olan kullanıcıya DM gönderilemedi: ${err.message}`);
+                    });
+                }
+            }
+
+            await db.delete(`daily_message_stats.${yesterday}`);
+            Logger.info(`${yesterday} tarihli günlük mesaj verileri temizlendi ve ilk 10'a giren üyelere DM başarıyla gönderildi.`);
+        }
+
+        const leaderboardData = await db.get(`stat_mesaj`);
+        if (!leaderboardData) return;
+
+        const channel = client.channels.cache.get(leaderboardData.channelId);
+        if (!channel) return;
+
+        const lbMessage = await channel.messages.fetch(leaderboardData.messageId).catch(() => null);
+        if (!lbMessage) return;
+
+        const today = getTodayDate();
+        const stats = await db.get(`daily_message_stats.${today}`) || {};
+
+        // Convert to array and sort
+        const sortedEntries = Object.entries(stats)
+            .sort(([, a], [, b]) => b - a);
+
+        let description = "";
+        let topUserAvatar = null;
+
+        for (let i = 0; i < 10; i++) {
+            const entry = sortedEntries[i];
+            const rank = i + 1;
+
+            if (entry) {
+                const [userId, count] = entry;
+                const user = client.users.cache.get(userId) || await client.users.fetch(userId).catch(() => null);
+
+                if (user) {
+                    description += `**${rank} • ** ${user} (${emojis.message} ${count})\n`;
+                    if (i === 0) topUserAvatar = user.displayAvatarURL();
+                } else {
+                    sortedEntries.splice(i, 1);
+                    i--;
+                    continue;
+                }
+            } else {
+                description += `**${rank} •** Bulunamadı\n`;
+            }
+        }
+
+        const todayDate = new Date().toLocaleDateString('tr-TR');
+        const currentDateWithHour = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+
+        const lastWinnerData = await db.get('last_day_winner');
+        let lastWinnerDisplay = "Henüz veri yok.";
+        if (lastWinnerData) {
+            const lastWinnerUser = client.users.cache.get(lastWinnerData.userId) || await client.users.fetch(lastWinnerData.userId).catch(() => null);
+            lastWinnerDisplay = lastWinnerUser ? `${lastWinnerUser} (${emojis.message} ${lastWinnerData.count})` : "Bulunamadı";
+        }
+
+        const nextResetTimestamp = Math.floor((getTodayStartTimestamp() + (24 * 60 * 60 * 1000)) / 1000);
+
+        const lbEmbed = baseEmbed()
+            .setTitle(`${emojis.crown} | ${todayDate} - Günlük Mesaj Sıralaması`)
+            .setDescription(description || "Henüz veri yok.")
+            .setColor("#a142f5")
+            .setFooter({
+                text: client.user.username,
+                iconURL: client.user.displayAvatarURL()
+            })
+            .addFields(
+                { name: `${emojis.crown} | Dünün Birincisi`, value: "• " + lastWinnerDisplay, inline: false },
+                { name: `${emojis.timer} | Sıfırlanma`, value: `• <t:${nextResetTimestamp}:R>`, inline: true },
+                { name: `${emojis.timer} | Son Güncelleme`, value: "• " + currentDateWithHour, inline: true }
+            )
+            .setTimestamp();
+
+        if (topUserAvatar) {
+            lbEmbed.setThumbnail(topUserAvatar);
+        }
+
+        await lbMessage.edit({
+            embeds: [lbEmbed]
+        });
+
+    } catch (err) {
+        if (err.code !== 10008) {
+            Logger.error(`Sıralama güncelleme hatası: ${err.message}`);
+        }
+    }
+}
+
 module.exports = {
     name: 'clientReady',
     once: true,
@@ -93,17 +224,28 @@ module.exports = {
         // ─── Role Protection Initial Sync ─────────────────────
         for (const guild of client.guilds.cache.values()) {
             await syncGuild(guild);
+            await syncJails(guild).catch(err => Logger.error(`Jail sync failed for ${guild.name}: ${err.message}`));
         }
 
         // ─── Dynamic Rich Presence ─────────────────────────────
         const { presence } = config;
         let activityIndex = 0;
 
-        const updatePresence = () => {
+        const updatePresence = async () => {
             const activity = presence.activities[activityIndex];
-            const name = activity.name
+            let name = activity.name
                 .replace('{guilds}', client.guilds.cache.size)
                 .replace('{users}', client.users.cache.size);
+
+            if (name.includes('{top_user}')) {
+                const lastWinnerData = await db.get('last_day_winner');
+                let lastWinnerName = "Bulunamadı";
+                if (lastWinnerData) {
+                    const user = client.users.cache.get(lastWinnerData.userId) || await client.users.fetch(lastWinnerData.userId).catch(() => null);
+                    if (user) lastWinnerName = user.username;
+                }
+                name = name.replace('{top_user}', lastWinnerName);
+            }
 
             client.user.setPresence({
                 activities: [{ name, type: activity.type }],
@@ -120,6 +262,12 @@ module.exports = {
         setInterval(async () => {
             await updateStatsMessage(client);
         }, 10000);
+
+        setInterval(async () => {
+            await updateLeaderboardMessage(client);
+        }, 10000);
+
+        // Removed manual cleanup as it's now handled in the update interval
 
         // ─── Offline Check ──────────────────────────────────────
         const lastOnline = await db.get('last_online_timestamp');
@@ -168,8 +316,17 @@ module.exports = {
             }
         }, 60000); // 1 minute heartbeat
 
-        // ─── Jail Expiration Check ─────────────────────────────
-        //initJailCheck(client);
+        // ─── Channel Permission Cache (5-minute refresh) ──────
+        setInterval(async () => {
+            for (const guild of client.guilds.cache.values()) {
+                await syncChannelPermissions(guild).catch(err =>
+                    Logger.error(`Channel permission sync failed for ${guild.name}: ${err.message}`)
+                );
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+
+        // ─── Jail System Initialization ────────────────────────
+        initJailCheck(client);
     },
 };
 

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
 const db = require('../../database/db');
 const { generateSecurityEmbed } = require('../../utils/security-logs');
@@ -16,18 +16,18 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ViewAuditLog),
 
     async execute(interaction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         const logId = interaction.options.getString('olay-id');
 
         const logEntry = await db.get(`security_log_${logId}`);
 
         if (!logEntry) {
-            return interaction.reply({
-                embeds: [errorEmbed('Hata', 'Bu ID ile bir olay bulunamadı.')],
-                ephemeral: true,
+            return interaction.editReply({
+                embeds: [errorEmbed('Hata', 'Bu ID ile bir olay bulunamadı.')]
             });
         }
 
         const embed = generateSecurityEmbed(logEntry);
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.editReply({ embeds: [embed] });
     },
 };

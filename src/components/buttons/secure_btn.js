@@ -1,4 +1,6 @@
+const { MessageFlags } = require('discord.js');
 const { successEmbed } = require('../../utils/embeds');
+
 
 module.exports = {
     data: {
@@ -10,7 +12,7 @@ module.exports = {
     async execute(interaction) {
         await interaction.reply({
             embeds: [successEmbed('Access Granted', 'You successfully clicked the secure button!')],
-            ephemeral: true
+            flags: [MessageFlags.Ephemeral]
         });
     },
 };

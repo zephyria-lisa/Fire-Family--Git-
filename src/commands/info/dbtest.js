@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 const db = require('../../database/db');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
 
@@ -37,6 +37,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
 
     async execute(interaction) {
+        await interaction.deferReply();
         const subcommand = interaction.options.getSubcommand();
         const key = interaction.options.getString('key');
 
@@ -44,26 +45,25 @@ module.exports = {
             const value = interaction.options.getString('value');
             await db.set(key, value);
 
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [successEmbed('Database Set', `Stored **${value}** under key **${key}**`)]
             });
         } else if (subcommand === 'get') {
             const value = await db.get(key);
 
             if (value === null || value === undefined) {
-                return interaction.reply({
-                    embeds: [errorEmbed('Error', `No value found for key **${key}**`)],
-                    ephemeral: true
+                return interaction.editReply({
+                    embeds: [errorEmbed('Error', `No value found for key **${key}**`)]
                 });
             }
 
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [successEmbed('Database Get', `Value for **${key}**: \n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``)]
             });
         } else if (subcommand === 'delete') {
             await db.delete(key);
 
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [successEmbed('Database Delete', `Deleted key **${key}**`)]
             });
         }

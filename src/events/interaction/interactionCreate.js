@@ -9,7 +9,7 @@
  *   - Context menus
  */
 
-const { Collection } = require('discord.js');
+const { Collection, MessageFlags } = require('discord.js');
 const Logger         = require('../../utils/logger');
 const config         = require('../../config');
 const { errorEmbed } = require('../../utils/embeds');
@@ -48,7 +48,7 @@ module.exports = {
                     const prefix = interaction.isChatInputCommand() ? '/' : '';
                     return interaction.reply({
                         embeds: [errorEmbed('Cooldown', `Please wait **${remaining}s** before using \`${prefix}${command.data.name}\` again.`)],
-                        ephemeral: true,
+                        flags: [MessageFlags.Ephemeral],
                     });
                 }
             }
@@ -60,7 +60,7 @@ module.exports = {
             if (command.devOnly && !config.developers.includes(interaction.user.id)) {
                 return interaction.reply({
                     embeds: [errorEmbed('Restricted', 'This command is restricted to bot developers.')],
-                    ephemeral: true,
+                    flags: [MessageFlags.Ephemeral],
                 });
             }
 
@@ -73,7 +73,7 @@ module.exports = {
 
                 const reply = {
                     embeds: [errorEmbed('Error', 'Something went wrong while executing this command.')],
-                    ephemeral: true,
+                    flags: [MessageFlags.Ephemeral],
                 };
 
                 if (interaction.replied || interaction.deferred) {
@@ -122,7 +122,7 @@ module.exports = {
                 if (interaction.user.id !== ownerId) {
                     return interaction.reply({
                         embeds: [errorEmbed('Restricted', 'Only the person who started this interaction can use this button.')],
-                        ephemeral: true,
+                        flags: [MessageFlags.Ephemeral],
                     });
                 }
             }
@@ -157,7 +157,7 @@ module.exports = {
                 if (interaction.user.id !== ownerId) {
                     return interaction.reply({
                         embeds: [errorEmbed('Restricted', 'Only the person who started this interaction can submit this modal.')],
-                        ephemeral: true,
+                        flags: [MessageFlags.Ephemeral],
                     });
                 }
             }

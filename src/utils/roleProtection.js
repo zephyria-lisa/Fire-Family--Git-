@@ -56,8 +56,22 @@ async function syncGuild(guild) {
                 permissions: role.permissions.bitfield.toString(),
                 position: role.position,
                 mentionable: role.mentionable,
-                members: memberIds
+                members: memberIds,
+                channelOverwrites: {}
             };
+        }
+
+        // Collect channel permission overwrites for each role
+        for (const channel of guild.channels.cache.values()) {
+            for (const [targetId, overwrite] of channel.permissionOverwrites.cache) {
+                // Only cache role overwrites that we have in backupData
+                if (overwrite.type === 0 && backupData[targetId]) {
+                    backupData[targetId].channelOverwrites[channel.id] = {
+                        allow: overwrite.allow.bitfield.toString(),
+                        deny: overwrite.deny.bitfield.toString()
+                    };
+                }
+            }
         }
 
         // Save to database
@@ -73,6 +87,40 @@ async function syncGuild(guild) {
         Logger.success(`Role Protection sync complete for ${guild.name}. Cached ${Object.keys(backupData).length} roles with a total of ${totalMembersSaved} member-role associations.`);
     } catch (error) {
         Logger.error(`Failed to sync guild ${guild.name}:`, error);
+    }
+}
+
+/**
+ * Refreshes only the channel permission overwrites for all cached roles.
+ * Designed to be called on a periodic interval (e.g. every 5 minutes).
+ * @param {import('discord.js').Guild} guild 
+ */
+async function syncChannelPermissions(guild) {
+    try {
+        const currentBackup = await db.get(`role_backups_${guild.id}`);
+        if (!currentBackup) return;
+
+        // Reset all channel overwrites before re-scanning
+        for (const roleId in currentBackup) {
+            currentBackup[roleId].channelOverwrites = {};
+        }
+
+        // Collect fresh channel permission overwrites
+        for (const channel of guild.channels.cache.values()) {
+            for (const [targetId, overwrite] of channel.permissionOverwrites.cache) {
+                if (overwrite.type === 0 && currentBackup[targetId]) {
+                    currentBackup[targetId].channelOverwrites[channel.id] = {
+                        allow: overwrite.allow.bitfield.toString(),
+                        deny: overwrite.deny.bitfield.toString()
+                    };
+                }
+            }
+        }
+
+        await db.set(`role_backups_${guild.id}`, currentBackup);
+        Logger.info(`Channel permission cache refreshed for ${guild.name}.`);
+    } catch (error) {
+        Logger.error(`Failed to sync channel permissions for ${guild.name}:`, error);
     }
 }
 
@@ -234,6 +282,51 @@ async function restoreRole(guild, roleId) {
 
         Logger.success(`Restoration complete for ${data.name}. Recovered: ${successCount}, Failed: ${failCount}`);
 
+        // 5. Restore channel permission overwrites
+        const channelOverwrites = data.channelOverwrites || {};
+        let channelSuccess = 0;
+        let channelFail = 0;
+
+        for (const [channelId, perms] of Object.entries(channelOverwrites)) {
+            try {
+                const channel = guild.channels.cache.get(channelId);
+                if (!channel) {
+                    channelFail++;
+                    continue;
+                }
+
+                const allowBits = BigInt(perms.allow);
+                const denyBits = BigInt(perms.deny);
+
+                // Build a permissions object from the stored bitfields
+                const { PermissionsBitField } = require('discord.js');
+                const allowPerms = new PermissionsBitField(allowBits);
+                const denyPerms = new PermissionsBitField(denyBits);
+                const overwriteOptions = {};
+
+                for (const [perm] of Object.entries(PermissionsBitField.Flags)) {
+                    if (allowPerms.has(PermissionsBitField.Flags[perm])) {
+                        overwriteOptions[perm] = true;
+                    } else if (denyPerms.has(PermissionsBitField.Flags[perm])) {
+                        overwriteOptions[perm] = false;
+                    }
+                }
+
+                await channel.permissionOverwrites.create(newRole, overwriteOptions, {
+                    reason: 'Rol Koruması: Kanal izinleri geri yüklendi'
+                });
+
+                channelSuccess++;
+            } catch (err) {
+                Logger.warn(`Failed to restore overwrites for role ${data.name} on channel ${channelId}: ${err.message}`);
+                channelFail++;
+            }
+        }
+
+        if (Object.keys(channelOverwrites).length > 0) {
+            Logger.success(`Channel permission restoration for ${data.name}: Success=${channelSuccess}, Failed/Skipped=${channelFail}`);
+        }
+
         const infoEmbed = baseEmbed()
             .setAuthor({
                 name: `${guild.name} - Rol Koruması`,
@@ -257,6 +350,16 @@ async function restoreRole(guild, roleId) {
                     name: 'Başarısız Üye Sayısı',
                     value: `${failCount}`,
                     inline: true
+                },
+                {
+                    name: 'Kanal İzni Geri Yüklenen',
+                    value: `${channelSuccess}`,
+                    inline: true
+                },
+                {
+                    name: 'Kanal İzni Başarısız',
+                    value: `${channelFail}`,
+                    inline: true
                 }
             )
             .setFooter({
@@ -275,6 +378,142 @@ async function restoreRole(guild, roleId) {
 }
 
 const RATE_LIMIT_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+const ROLE_NAME_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+
+/**
+ * Handles protection for role name changes.
+ * - Authorized users (high_moderator_role) can change as they wish, but it's logged.
+ * - Unauthorized users have a 12-hour cooldown.
+ * - Unauthorized changes within the cooldown window are reverted and logged.
+ *
+ * @param {import('discord.js').Role} oldRole
+ * @param {import('discord.js').Role} newRole
+ * @param {import('discord.js').Client} client
+ */
+async function handleRoleNameProtection(oldRole, newRole, client) {
+    if (oldRole.name === newRole.name) return;
+
+    let executor = null;
+    const guild = newRole.guild;
+
+    try {
+        // Wait for audit log to populate
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const fetchedLogs = await guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.RoleUpdate });
+
+        const roleLog = fetchedLogs.entries.find(entry => {
+            return entry.targetId === newRole.id && entry.changes.some(change => change.key === 'name');
+        });
+
+        if (roleLog) {
+            executor = roleLog.executor;
+        }
+    } catch (error) {
+        Logger.error('Failed to fetch audit logs for role name change:', error);
+    }
+
+    if (!executor) return;
+
+    // Skip if the bot itself made the change
+    if (executor.id === client.user.id) return;
+
+    // Fetch the executor as a GuildMember
+    const executorMember = await guild.members.fetch(executor.id).catch(() => null);
+    if (!executorMember) return;
+
+    const isAuthorized = executorMember.roles.cache.has(config.roles.high_moderator_role) || executorMember.permissions.has(PermissionFlagsBits.Administrator);
+    const logChannel = guild.channels.cache.get(config.channels.role_protection_logs);
+
+    if (isAuthorized) {
+        if (logChannel) {
+            const embed = baseEmbed()
+                .setAuthor({ name: `${guild.name} - Rol İsmi Değişikliği`, iconURL: guild.iconURL() })
+                .setDescription(`${config.emojis.info} | Yetkili bir kullanıcı bir rolün ismini değiştirdi.`)
+                .addFields(
+                    { name: 'Rol', value: `${newRole} (${newRole.id})`, inline: true },
+                    { name: 'Eski İsim', value: `\`${oldRole.name}\``, inline: true },
+                    { name: 'Yeni İsim', value: `\`${newRole.name}\``, inline: true },
+                    { name: 'Yetkili', value: `${executor.tag} (${executor.id})`, inline: true }
+                )
+                .setColor('Blue')
+                .setTimestamp();
+
+            await logChannel.send({ embeds: [embed] });
+        }
+        return;
+    }
+
+    // Not authorized - check 12-hour cooldown
+    const dbKey = `role_name_last_change_${executor.id}`;
+    const lastChange = await db.get(dbKey);
+    const now = Date.now();
+
+    if (lastChange && (now - lastChange) < ROLE_NAME_COOLDOWN_MS) {
+        // OVER LIMIT — Revert the name change
+        const remainingMs = ROLE_NAME_COOLDOWN_MS - (now - lastChange);
+        const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+        const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+        const timeStr = `${hours}s ${minutes}dk`;
+
+        Logger.warn(`${executor.tag} attempted to change role name while on cooldown. Reverting...`);
+
+        try {
+            await newRole.setName(oldRole.name, 'Rol Koruması: 12 saatlik limit');
+        } catch (err) {
+            Logger.error(`Failed to revert role name for ${newRole.id}:`, err);
+            if (logChannel) {
+                await logChannel.send({ content: `${config.emojis.warning} | \`${newRole.name}\` rolünün ismini geri almaya çalıştım ancak yetkim yetmedi!` });
+            }
+        }
+
+        // Inform the user via DM
+        try {
+            await executor.send({
+                content: `${config.emojis.warning} | Bir rolün ismini çok sık değiştiriyorsunuz! Tekrar isim değiştirebilmek için **${timeStr}** beklemeniz gerekmektedir.`
+            });
+        } catch (dmErr) {
+            Logger.info(`Could not send DM to ${executor.tag} (Name protection).`);
+        }
+
+        // Log the protection action
+        if (logChannel) {
+            const embed = baseEmbed()
+                .setAuthor({ name: `${guild.name} - Rol Koruması`, iconURL: guild.iconURL() })
+                .setDescription(`${config.emojis.lock} | \`${executor.tag}\` 12 saat içinde zaten bir rol ismi değiştirdiği için yaptığı işlem geri alındı.`)
+                .addFields(
+                    { name: 'Rol', value: `${newRole} (${newRole.id})`, inline: true },
+                    { name: 'Geri Alınan İsim', value: `\`${newRole.name}\` -> \`${oldRole.name}\``, inline: true },
+                    { name: 'Yetkili', value: `${executor.tag} (${executor.id})`, inline: true },
+                    { name: 'Kalan Süre', value: timeStr, inline: true }
+                )
+                .setColor('Red')
+                .setTimestamp();
+
+            await logChannel.send({ embeds: [embed] });
+        }
+    } else {
+        // First change or cooldown expired — start new cooldown
+        await db.set(dbKey, now);
+        Logger.info(`${executor.tag} changed a role name. 12-hour cooldown started.`);
+
+        if (logChannel) {
+            const embed = baseEmbed()
+                .setAuthor({ name: `${guild.name} - Rol İsmi Değişikliği`, iconURL: guild.iconURL() })
+                .setDescription(`${config.emojis.info} | Bir rolün ismi değiştirildi ve 12 saatlik bekleme süresi başlatıldı.`)
+                .addFields(
+                    { name: 'Rol', value: `${newRole} (${newRole.id})`, inline: true },
+                    { name: 'Eski İsim', value: `\`${oldRole.name}\``, inline: true },
+                    { name: 'Yeni İsim', value: `\`${newRole.name}\``, inline: true },
+                    { name: 'Yetkili', value: `${executor.tag} (${executor.id})`, inline: true }
+                )
+                .setColor('Yellow')
+                .setTimestamp();
+
+            await logChannel.send({ embeds: [embed] });
+        }
+    }
+}
 
 /**
  * Gets the highest grant and remove limits for a member based on their roles.
@@ -288,6 +527,8 @@ function getRateLimits(member) {
 
     let maxGrant = 0;
     let maxRemove = 0;
+    let maxJail = 0;
+    let maxUnjail = 0;
     let found = false;
 
     for (const [roleId, limits] of Object.entries(cooldowns)) {
@@ -295,10 +536,12 @@ function getRateLimits(member) {
             found = true;
             if (limits.grant > maxGrant) maxGrant = limits.grant;
             if (limits.remove > maxRemove) maxRemove = limits.remove;
+            if (limits.jail && limits.jail > maxJail) maxJail = limits.jail;
+            if (limits.unjail && limits.unjail > maxUnjail) maxUnjail = limits.unjail;
         }
     }
 
-    return found ? { grant: maxGrant, remove: maxRemove } : null;
+    return found ? { grant: maxGrant, remove: maxRemove, jail: maxJail, unjail: maxUnjail } : null;
 }
 
 /**
@@ -313,12 +556,14 @@ async function getUsage(executorId, guildId) {
     const data = await db.get(key);
     const now = Date.now();
 
+    const defaults = { grant: 0, remove: 0, jail: 0, unjail: 0, windowStart: now };
+
     if (data && (now - data.windowStart) < RATE_LIMIT_WINDOW_MS) {
-        return data;
+        return { ...defaults, ...data };
     }
 
     // Window expired or no data — return fresh usage
-    return { grant: 0, remove: 0, windowStart: now };
+    return defaults;
 }
 
 /**
@@ -416,17 +661,16 @@ async function handleRoleChangeProtection(oldMember, newMember, rolesAdded, role
     const executorMember = await newMember.guild.members.fetch(executor.id).catch(() => null);
     if (!executorMember) return;
 
-    // Skip if executor has Administrator permission
-    /*if (executorMember.permissions.has(PermissionFlagsBits.Administrator)) {
-        Logger.info(`Skipping rate-limit check for ${executor.tag} — has Administrator permission.`);
-        return;
-    }*/
-
-    // Get the executor's rate limits based on their roles
+    const isAdmin = executorMember.permissions.has(PermissionFlagsBits.Administrator) || executorMember.user.bot;
     const limits = getRateLimits(executorMember);
     const logChannel = newMember.guild.channels.cache.find(c => c.id === config.channels.role_protection_logs);
 
     if (!limits) {
+        if (isAdmin) {
+            Logger.info(`Skipping rate-limit check for ${executor.tag} — has Administrator permission.`);
+            return;
+        }
+
         // No matching roles in role_perm_cooldowns — this person has NO permission to change roles. Undo everything.
         Logger.warn(`${executor.tag} has no role-perm-cooldown roles. Undoing all role changes...`);
 
@@ -580,16 +824,29 @@ async function handleRoleChangeProtection(oldMember, newMember, rolesAdded, role
             Logger.info(`${executor.tag} used ${rolesAdded.length} GRANT action(s). Now at ${usage.grant + rolesAdded.length}/${limits.grant}.`);
         }
     }
+
+    // If executor is Administrator but exceeds limits, we track it anyway but don't undo/block
+    if (isAdmin) {
+        if (rolesRemoved.length > 0 && usage.remove + rolesRemoved.length > limits.remove) {
+            await incrementUsage(executor.id, guildId, 'remove', rolesRemoved.length);
+        }
+        if (rolesAdded.length > 0 && usage.grant + rolesAdded.length > limits.grant) {
+            await incrementUsage(executor.id, guildId, 'grant', rolesAdded.length);
+        }
+    }
 }
 
 
 module.exports = {
     syncGuild,
+    syncChannelPermissions,
     updateRoleMetadata,
     updateMemberRoles,
     restoreRole,
     handleRoleChangeProtection,
     getRateLimits,
     getUsage,
-    getRemainingTime
+    incrementUsage,
+    getRemainingTime,
+    handleRoleNameProtection
 }

@@ -5,7 +5,8 @@ async function getModeratorRoleOwnerAmounts(guild) {
     const amounts = {};
 
     for (const [key, role] of Object.entries(roles)) {
-        amounts[key] = guild.roles.cache.get(role).members.size;
+        const roleObj = guild.roles.cache.get(role);
+        amounts[key] = roleObj ? roleObj.members.size : 0;
     }
 
     return amounts;

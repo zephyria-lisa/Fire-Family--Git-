@@ -10,6 +10,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        await interaction.deferReply();
         let foundFlaw = false
 
         const embed = baseEmbed()
@@ -69,6 +70,6 @@ module.exports = {
             embed.setColor("#32a852");
         }
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
     },
 };

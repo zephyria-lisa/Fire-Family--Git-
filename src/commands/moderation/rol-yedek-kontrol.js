@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const db = require('../../database/db');
 const { baseEmbed } = require('../../utils/embeds');
 
@@ -13,18 +13,18 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        await interaction.deferReply();
         const role = interaction.options.getRole('rol');
         const guildId = interaction.guild.id;
 
         const backups = await db.get(`role_backups_${guildId}`);
 
         if (!backups || !backups[role.id]) {
-            return interaction.reply({
+            return interaction.editReply({
                 embeds: [baseEmbed()
                     .setTitle('Yedek Bulunamadı')
                     .setDescription(`\`${role.name}\` için veritabanında herhangi bir yedek bulunmuyor. Sync işlemini bekleyin or botu yeniden başlatın.`)
-                    .setColor('Red')],
-                ephemeral: true
+                    .setColor('Red')]
             });
         }
 
@@ -50,6 +50,6 @@ module.exports = {
             embed.addFields({ name: 'Örnek Üyeler', value: sampleMembers + (memberCount > 10 ? '...' : ''), inline: false });
         }
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
     },
 };

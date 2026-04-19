@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { infoEmbed } = require('../../utils/embeds');
 
 module.exports = {
@@ -10,8 +10,10 @@ module.exports = {
         const { guild } = interaction;
 
         if (!guild) {
-            return interaction.reply({ content: 'Bu komut sadece bir sunucuda kullanılabilir.', ephemeral: true });
+            return interaction.reply({ content: 'Bu komut sadece bir sunucuda kullanılabilir.', flags: [MessageFlags.Ephemeral] });
         }
+
+        await interaction.deferReply();
 
         const embed = infoEmbed(`📊 ${guild.name}`, null)
             .setThumbnail(guild.iconURL({ dynamic: true, size: 256 }))
@@ -25,6 +27,6 @@ module.exports = {
                 { name: 'Oluşturulma', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`, inline: true },
             );
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
     },
 };

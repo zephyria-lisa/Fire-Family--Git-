@@ -1,4 +1,4 @@
-const { AuditLogEvent } = require('discord.js');
+const { AuditLogEvent, PermissionFlagsBits } = require('discord.js');
 const Logger = require('../../utils/logger');
 const { restoreRole } = require('../../utils/roleProtection');
 const config = require('../../utils/config.json');
@@ -67,7 +67,9 @@ module.exports = {
                 const member = await role.guild.members.fetch(executor.id).catch(() => null);
                 const protectedRoleId = config.roles.protected_role;
 
-                if (member && member.roles.cache.has(protectedRoleId)) {
+                if (member && member.user.bot) return;
+
+                if (member && (member.roles.cache.has(protectedRoleId) || member.permissions.has(PermissionFlagsBits.Administrator))) {
                     Logger.success(`Authorized deletion by ${executor.tag}. Skipping restoration.`);
 
                     const infoEmbed = baseEmbed()

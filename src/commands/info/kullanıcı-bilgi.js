@@ -13,7 +13,8 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const target = interaction.options.getUser('user') || interaction.user;
+        await interaction.deferReply();
+        const target = interaction.options.getUser('kullanıcı') || interaction.user;
         const member = interaction.guild?.members.cache.get(target.id);
 
         const embed = infoEmbed(`👤 ${target.tag}`, null)
@@ -32,6 +33,6 @@ module.exports = {
             );
         }
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
     },
 };

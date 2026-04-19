@@ -3,12 +3,40 @@ const { checkMember } = require('../../utils/memberChecker');
 const db = require('../../database/db');
 const { baseEmbed } = require('../../utils/embeds');
 const config = require('../../utils/config');
+const { syncMemberJail } = require('../../utils/jailUtils');
 
 module.exports = {
     name: 'guildMemberAdd',
     once: false,
     async execute(member, client) {
         Logger.info(`New member joined: ${member.user.tag} in ${member.guild.name}`);
+        await syncMemberJail(member);
+
+        const jailData = await db.get(`jail_${member.id}`);
+        if (jailData) {
+            const now = new Date();
+            const endDate = new Date(jailData.endDate);
+            if (endDate > now) {
+                const jsonConfig = require('../../utils/config.json');
+                const securityLogChannel = member.guild.channels.cache.get(jsonConfig.channels.security_logs);
+                if (securityLogChannel) {
+                    const jailLogEmbed = baseEmbed()
+                        .setTitle(`${config.emojis.lock} | Karantinalı Üye Giriş Yaptı`)
+                        .setDescription(`**${member.user.tag}** sunucuya giriş yaptı ancak aktif bir karantinası bulunduğu için karantina rolü verildi.`)
+                        .addFields(
+                            { name: 'Sebep', value: jailData.reason, inline: true },
+                            { name: 'Bitiş Tarihi', value: `<t:${Math.floor(endDate.getTime() / 1000)}:R>`, inline: true },
+                            { name: 'Karantinaya Alan', value: `<@${jailData.moderatorId}>`, inline: true }
+                        )
+                        .setColor("#ff9900")
+                        .setThumbnail(member.user.displayAvatarURL())
+                        .setTimestamp()
+                        .setFooter({ text: member.guild.name, iconURL: member.guild.iconURL() });
+
+                    await securityLogChannel.send({ embeds: [jailLogEmbed] }).catch(() => {});
+                }
+            }
+        }
 
         const logChannelId = config.channels.action_logs;
         const logChannel = member.guild.channels.cache.get(logChannelId);

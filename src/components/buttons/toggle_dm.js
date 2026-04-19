@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 const { infoEmbed, errorEmbed } = require('../../utils/embeds');
 const Logger = require('../../utils/logger');
 const db = require('../../database/db');
@@ -27,7 +27,7 @@ module.exports = {
                     .setDescription("Mesaj almayı açtınız. Bundan sonra size mesaj gönderilebilecek.")
                     .setColor("#32a852");
 
-                await interaction.reply({ embeds: [embed], ephemeral: true });
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -44,7 +44,7 @@ module.exports = {
             Logger.error(`Error in view_member button:`, error);
             await interaction.reply({
                 embeds: [errorEmbed('Error', 'Failed to fetch member details. They may have left the server.')],
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
     },

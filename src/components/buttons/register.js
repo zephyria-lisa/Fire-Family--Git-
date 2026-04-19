@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 const { infoEmbed, errorEmbed } = require('../../utils/embeds');
 const Logger = require('../../utils/logger');
 const db = require('../../database/db');
@@ -73,12 +73,12 @@ module.exports = {
                 .setDescription(`Kayıt oldunuz ve <@&${memberRole.id}> rolünü aldınız. Tam erişim sağlamak için <#1488250438292602901> kanalından Roblox hesabınızı bağlayabilirsiniz.`)
                 .setColor("#32a852");
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
         } catch (error) {
             Logger.error(`Error in register button:`, error);
             await interaction.reply({
                 embeds: [errorEmbed('Hata', 'Bir şeyler ters gitti, üzgünüz.')],
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
     },

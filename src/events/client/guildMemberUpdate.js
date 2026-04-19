@@ -1,4 +1,5 @@
 const { updateMemberRoles, handleRoleChangeProtection } = require('../../utils/roleProtection');
+const { handleJailRoleProtection } = require('../../utils/jailUtils');
 const Logger = require('../../utils/logger');
 
 module.exports = {
@@ -17,12 +18,19 @@ module.exports = {
             await updateMemberRoles(newMember);
         }
 
-        const rolesAdded = newRoles.filter(r => !oldRoles.includes(r)).filter(r => newMember.guild.roles.cache.get(r) && newMember.guild.members.me.roles.highest.position > newMember.guild.roles.cache.get(r).position)
-        const rolesRemoved = oldRoles.filter(r => !newRoles.includes(r)).filter(r => newMember.guild.roles.cache.get(r) && newMember.guild.members.me.roles.highest.position > newMember.guild.roles.cache.get(r).position)
+        const rolesAdded = newRoles.filter(r => !oldRoles.includes(r));
+        const rolesRemoved = oldRoles.filter(r => !newRoles.includes(r));
 
-        Logger.info("Roles removed: ", rolesRemoved);
-        Logger.info("Roles added: ", rolesAdded);
+        // Jail protection check
+        await handleJailRoleProtection(newMember, rolesAdded);
 
-        await handleRoleChangeProtection(oldMember, newMember, rolesAdded, rolesRemoved, client);
+        // Filter roles for general protection (only roles bot can manage)
+        const manageableRolesAdded = rolesAdded.filter(r => newMember.guild.roles.cache.get(r) && newMember.guild.members.me.roles.highest.position > newMember.guild.roles.cache.get(r).position);
+        const manageableRolesRemoved = rolesRemoved.filter(r => newMember.guild.roles.cache.get(r) && newMember.guild.members.me.roles.highest.position > newMember.guild.roles.cache.get(r).position);
+
+        Logger.info("Roles removed: ", manageableRolesRemoved);
+        Logger.info("Roles added: ", manageableRolesAdded);
+
+        await handleRoleChangeProtection(oldMember, newMember, manageableRolesAdded, manageableRolesRemoved, client);
     },
 };

@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 const { infoEmbed, errorEmbed } = require('../../utils/embeds');
 const Logger = require('../../utils/logger');
 
@@ -68,13 +68,13 @@ module.exports = {
                     { name: 'Hesap Oluşturulma Tarihi', value: `<t:${Math.floor(target.createdTimestamp / 1000)}:R>`, inline: true },
                 );
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
 
         } catch (error) {
             Logger.error(`Error in view_member button:`, error);
             await interaction.reply({
                 embeds: [errorEmbed('Error', 'Failed to fetch member details. They may have left the server.')],
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
     },

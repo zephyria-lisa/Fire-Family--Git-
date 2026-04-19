@@ -55,13 +55,39 @@ async function checkMessageMentions(message, client) {
     }
 }
 
+const userSpamCache = new Map();
+
 module.exports = {
     name: 'messageCreate',
     once: false,
     async execute(message, client) {
         if (!message.guild || message.author?.bot) return;
 
+        // Spam detection
+        const userId = message.author.id;
+        const now = Date.now();
+        const lastMessage = userSpamCache.get(userId);
+
+        if (lastMessage) {
+            const timeDiff = now - lastMessage.timestamp;
+            const isSimilar = message.content === lastMessage.content;
+
+            if (timeDiff < 8000 || isSimilar) {
+                // Forfeit the process as it's spam-likely
+                return;
+            }
+        }
+
+        // Update spam cache
+        userSpamCache.set(userId, {
+            content: message.content,
+            timestamp: now
+        });
+
         const todaysDate = getTodayDate();
+        // Global message count
         await db.add(`messages_${todaysDate}`, 1);
+        // Per-user daily message count
+        await db.add(`daily_message_stats.${todaysDate}.${userId}`, 1);
     },
 };

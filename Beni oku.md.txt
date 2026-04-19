@@ -1,0 +1,14 @@
+Botu başlatmak için Node 20 versiyonunun herhangi birisini indirip önce src içinde bir PowerShell dosyası açıp npm i komutunu kullanın.
+
+Sonrasında env dosyası oluşturup içine:
+DISCORD_TOKEN=MTQ5NDI5NTI1NzgzNDE5Mjk4OA.GjlxqV.btpmtOHe5OZSH9csENKRakuHGuDjyiVPgsTxMY
+
+CLIENT_ID=1494295257834192988
+
+GUILD_ID=1494295922362941553
+
+Yazın.
+
+Sonrasında eğer isterseniz pm2 gibi eklentiler yükleyerek 7/24 aktif tutabilirsiniz ancak zaten gelişmiş bir altyapı olduğu için bir hata çıktığında kapanmayacaktır.
+
+Çalıştırmak için npm run dev/node index komutlarını kullanın.
