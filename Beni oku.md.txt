@@ -1,8 +1,7 @@
 Botu başlatmak için Node 20 versiyonunun herhangi birisini indirip önce src içinde bir PowerShell dosyası açıp npm i komutunu kullanın.
 
 Sonrasında env dosyası oluşturup içine:
-DISCORD_TOKEN=MTQ5NDI5NTI1NzgzNDE5Mjk4OA.GjlxqV.btpmtOHe5OZSH9csENKRakuHGuDjyiVPgsTxMY
-
+DISCORD_TOKEN= <bu kısma token>
 CLIENT_ID=1494295257834192988
 
 GUILD_ID=1494295922362941553
